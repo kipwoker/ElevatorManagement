@@ -1,12 +1,12 @@
-# Fable Minimal App
+# Elevator Management
 
-This is a small Fable app project so you can easily get started and add your own code easily in it.
+This is a coding game based on a [Fable](https://fable.io/) framework.
+There are several elevators. Sometimes passengers use them. Provide efficiency algo for elevator system
 
 ## Requirements
 
 * [dotnet SDK](https://www.microsoft.com/net/download/core) 3.0 or higher
 * [node.js](https://nodejs.org) with [npm](https://www.npmjs.com/)
-* An F# editor like Visual Studio, Visual Studio Code with [Ionide](http://ionide.io/) or [JetBrains Rider](https://www.jetbrains.com/rider/).
 
 ## Building and running the app
 
