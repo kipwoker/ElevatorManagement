@@ -1,5 +1,6 @@
 module Draw
 
+open System
 open Common
 open Browser.Types
 open Domain
@@ -17,7 +18,9 @@ type Line =
 type CanvasSettings =
     { Width: Pixel
       Height: Pixel
-      Padding: Point }
+      Padding: Point
+      QuantToRenderingTime : TimeSpan
+    }
 
 type DrawObjects = {
     Lines: Line list
@@ -81,7 +84,7 @@ let private elevatorToObjects (elevatorPicture: ElevatorPicture) =
         Lines = createRectangleLines (leftDownPoint, rightUpPoint) |> List.append [leftLeaf;rightLeaf]
     }
 
-let private createElevatorPicture (settings: ElevatorSettings) (coefficient: float) (pivotPosition: Point) (leafShift: Meter) =
+let private createElevatorPicture (settings: ElevatorSettings) (coefficient: float) (pivotPosition: Point) (leafShift: Unit) =
     {
         Pivot = pivotPosition
         Height = settings.Height * coefficient
@@ -89,17 +92,18 @@ let private createElevatorPicture (settings: ElevatorSettings) (coefficient: flo
         LeafShift = leafShift * coefficient
     }
 
-let private prepareObjects (canvasSettings: CanvasSettings) (buildingSettings: BuildingSettings) =
-    let elevator = buildingSettings.Elevator
-    let floor = buildingSettings.Floor
+let private prepareObjects (canvasSettings: CanvasSettings) (building: Building) =
+    let buildingSettings = building.Settings
+    let elevatorSettings = buildingSettings.Elevator
+    let floorSettings = buildingSettings.Floor
 
-    let buildingWidthMeter = floor.Width |> log "buildingWidthMeter"
-    let buildingHeightMeter = (float floor.Count) * floor.Height  |> log "buildingHeightMeter"
+    let buildingWidthMeter = floorSettings.Width
+    let buildingHeightMeter = (float floorSettings.Count) * floorSettings.Height
 
     let leftDownPoint = canvasSettings.Padding
-    let buildingWidthPixel = (float canvasSettings.Width) - leftDownPoint.X * 2.0 |> log "buildingWidthPixel"
-    let coefficient = buildingWidthPixel / buildingWidthMeter  |> log "coefficient"
-    let buildingHeightPixel = buildingHeightMeter * coefficient |> log "buildingHeightPixel"
+    let buildingWidthPixel = (float canvasSettings.Width) - leftDownPoint.X * 2.0
+    let coefficient = buildingWidthPixel / buildingWidthMeter
+    let buildingHeightPixel = buildingHeightMeter * coefficient
 
     let rightUpPoint =
         { X = leftDownPoint.X + buildingWidthPixel
@@ -107,8 +111,8 @@ let private prepareObjects (canvasSettings: CanvasSettings) (buildingSettings: B
 
     let border = createRectangleLines (leftDownPoint, rightUpPoint)
 
-    let floors = List.init floor.Count (fun index ->
-        let shift = floor.Height * (float index) * coefficient
+    let floorLines = List.init floorSettings.Count (fun index ->
+        let shift = floorSettings.Height * (float index) * coefficient
         {
             Start = {
                 X = leftDownPoint.X
@@ -122,17 +126,18 @@ let private prepareObjects (canvasSettings: CanvasSettings) (buildingSettings: B
     )
 
     //note: for keeping center
-    let elevatorTotalWidth = elevator.Width + elevator.Padding * 2.0
-    let elevatorsTotalWidth = (float elevator.Count) * elevatorTotalWidth
+    let elevatorTotalWidth = elevatorSettings.Width + elevatorSettings.Padding * 2.0
+    let elevatorsTotalWidth = (float elevatorSettings.Count) * elevatorTotalWidth
     let elevatorsLeftPadding = (buildingWidthMeter - elevatorsTotalWidth) / 2.0
 
-    let elevators = List.init elevator.Count (fun index ->
-        let pivotX = elevatorsLeftPadding + elevatorTotalWidth * (float index) + elevatorTotalWidth / 2.0
+    let elevators = building.Elevators
+    let elevatorDrawObjects = elevators |> List.map (fun elevator ->
+        let pivotX = elevatorsLeftPadding + elevatorTotalWidth * (float (elevator.Number - 1)) + elevatorTotalWidth / 2.0
         let pivot = {
             X = leftDownPoint.X + pivotX * coefficient
-            Y = leftDownPoint.Y
+            Y = leftDownPoint.Y + elevator.VerticalPosition * coefficient
         }
-        let elevatorPicture = createElevatorPicture elevator coefficient pivot 0.0
+        let elevatorPicture = createElevatorPicture elevatorSettings coefficient pivot 0.0
         elevatorToObjects elevatorPicture
     )
 
@@ -141,9 +146,9 @@ let private prepareObjects (canvasSettings: CanvasSettings) (buildingSettings: B
             Lines = border
         }
         {
-            Lines = floors
+            Lines = floorLines
         }
-    ] |> List.append elevators
+    ] |> List.append elevatorDrawObjects
 
 
 let transform point height =
@@ -151,7 +156,7 @@ let transform point height =
       Y = (float height) - point.Y }
 
 let drawLine (line: Line) (height: Pixel) (context: CanvasRenderingContext2D) =
-    log' (sprintf "Draw\n%A\n->\n%A" line.Start line.End)
+    //log' (sprintf "Draw\n%A\n->\n%A" line.Start line.End)
     let start = transform line.Start height
     let end' = transform line.End height
     context.beginPath ()
@@ -160,8 +165,13 @@ let drawLine (line: Line) (height: Pixel) (context: CanvasRenderingContext2D) =
     context.closePath ()
     context.stroke ()
 
-let drawHouse (context: CanvasRenderingContext2D) (canvasSettings: CanvasSettings) (buildingSettings: BuildingSettings) =
-    let drawObjectsList = prepareObjects canvasSettings buildingSettings
+let clearAll (context: CanvasRenderingContext2D) (canvasSettings: CanvasSettings) =
+    context.clearRect(0.0, 0.0, canvasSettings.Width, canvasSettings.Height)
+
+let drawBuilding (context: CanvasRenderingContext2D) (canvasSettings: CanvasSettings) (building: Building) =
+    clearAll context canvasSettings
+
+    let drawObjectsList = prepareObjects canvasSettings building
     drawObjectsList |> List.iter (fun drawObjects ->
         drawObjects.Lines
         |> List.iter (fun line -> drawLine line canvasSettings.Height context |> ignore)
