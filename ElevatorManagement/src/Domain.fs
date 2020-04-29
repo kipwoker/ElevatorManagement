@@ -38,10 +38,13 @@ type Floor = {
 
 type Destination = Floor
 
+type Direction =
+  | Up
+  | Down
+
 type ElevatorState =
   | Idle of Floor
-  | Ascent of Destination
-  | Descent of Destination
+  | Move of Direction * Destination
 
 type Elevator = {
   Number: int
@@ -65,15 +68,17 @@ let tryCallElevator (destinationFloor: Floor) (elevator: Elevator) =
       State = 
         if destinationFloor.Number > floor'.Number 
         then 
-          Ascent destinationFloor
+          Move (Up, destinationFloor)
         else if destinationFloor.Number < floor'.Number 
         then
-          Descent destinationFloor
+          Move (Down, destinationFloor)
         else
           Idle floor'
       VerticalPosition = elevator.VerticalPosition
     } |> Ok
   | _ -> ElevatorMoves |> Fail
+
+
 
 let lifecycle (building: Building) =
   let quantCountPerMove = building.Settings.QuantPerMove
@@ -85,17 +90,13 @@ let lifecycle (building: Building) =
                         fun elevator -> 
                           match elevator.State with
                           | Idle _ -> elevator
-                          | Ascent destination -> 
-                            let destinationHeight = (float (destination.Number - 1)) * floorSettings.Height |> log "destinationHeight"
-                            let newVerticalPosition = Math.min(destinationHeight, elevator.VerticalPosition + speed * quantCountPerMove) |> log "newVerticalPosition"
-                            {
-                              Number = elevator.Number
-                              State = if destinationHeight = newVerticalPosition then Idle destination else elevator.State
-                              VerticalPosition = newVerticalPosition
-                            }
-                          | Descent destination -> 
-                            let destinationHeight = (float (destination.Number - 1)) * floorSettings.Height |> log "destinationHeight"
-                            let newVerticalPosition = Math.max(destinationHeight, elevator.VerticalPosition - speed * quantCountPerMove) |> log "newVerticalPosition"
+                          | Move (direction, destination) ->
+                            let destinationHeight = (float (destination.Number - 1)) * floorSettings.Height
+                            let interval = speed * quantCountPerMove
+                            let shift = match direction with
+                                        | Up -> interval
+                                        | Down -> -interval
+                            let newVerticalPosition = Math.min(destinationHeight, elevator.VerticalPosition + shift)
                             {
                               Number = elevator.Number
                               State = if destinationHeight = newVerticalPosition then Idle destination else elevator.State
