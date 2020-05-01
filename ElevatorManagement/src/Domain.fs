@@ -60,6 +60,9 @@ type Building =
       Floors: Floor list
     }
 
+type DomainEvent = 
+  | Call of Elevator * Destination  
+
 let tryCallElevator (destinationFloor: Floor) (elevator: Elevator) =
   match elevator.State with
   | Idle floor' -> 
@@ -78,7 +81,25 @@ let tryCallElevator (destinationFloor: Floor) (elevator: Elevator) =
     } |> Ok
   | _ -> ElevatorMoves |> Fail
 
+let rec private replaceElevator (elevator:Elevator) (elevators:Elevator list) =
+  match elevators with
+  | [] -> []
+  | head::tail when head.Number = elevator.Number -> elevator::tail
+  | head::tail -> head::(replaceElevator elevator tail)
+    
 
+let applyDomainEvent (event: DomainEvent) (building: Building) =
+  match event with
+  | Call (elevator, floor) -> 
+    let callResult = tryCallElevator floor elevator
+    match callResult with
+    | Ok elevator' -> 
+        {
+            Settings = building.Settings
+            Elevators = replaceElevator elevator' building.Elevators
+            Floors = building.Floors
+        }
+    | Fail _ -> building
 
 let lifecycle (building: Building) =
   let quantCountPerMove = building.Settings.QuantPerMove

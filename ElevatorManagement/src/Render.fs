@@ -61,7 +61,7 @@ let createElevators (elevatorSettings : ElevatorSettings) (firstFloor : Floor) :
             VerticalPosition = 0.0
         })    
 
-let rec applyEvents (queue : DomEvent list) (building : Building) =
+let rec applyDomEvents (queue : DomEvent list) (building : Building) =
     match queue with
     | [] -> building
     | event::tail ->
@@ -72,27 +72,18 @@ let rec applyEvents (queue : DomEvent list) (building : Building) =
                 let maybeFloor = building.Floors |> List.tryFind (fun floor -> floor.Number = digit)
                 match maybeFloor |> log "floor" with
                 | Some floor ->
-                    let callResult = tryCallElevator floor building.Elevators.Head
-                    match callResult |> log "callResult" with
-                    | Ok elevator -> 
-                        let building' = {
-                            Settings = building.Settings
-                            Elevators = elevator::building.Elevators.Tail
-                            Floors = building.Floors
-                        }
-                        applyEvents tail building'
-                    | Fail _ ->  applyEvents tail building
-                | None -> applyEvents tail building
-        | KeyUp _ -> applyEvents tail building
-
-        
+                    let callEvent = Call (building.Elevators.Head, floor)
+                    let building' = applyDomainEvent callEvent building
+                    applyDomEvents tail building'
+                | None -> applyDomEvents tail building
+        | KeyUp _ -> applyDomEvents tail building
 
 
 let rec loop building context canvasSettings = 
     let queue = events.queue
     events.queue <- []
 
-    let building' = building |> (applyEvents queue >> lifecycle)
+    let building' = building |> (applyDomEvents queue >> lifecycle)
 
     drawBuilding context canvasSettings building'
     
@@ -103,15 +94,18 @@ let rec loop building context canvasSettings =
 
 
 let init (settings: Settings) =
-    let canvasSettings = settings.CanvasSettings
-    let buildingSettings = settings.BuildingSettings
-
     let canvas = document.getElementById("playground") :?> Browser.Types.HTMLCanvasElement
+    let context = canvas.getContext_2d()
+    let canvasSettings = settings.CanvasSettings
 
     canvas.width <- float canvasSettings.Width
     canvas.height <- float canvasSettings.Height
+    
+    document.onkeydown <- keydown
+    document.onkeyup <- keyup
 
-    let context = canvas.getContext_2d()
+    
+    let buildingSettings = settings.BuildingSettings
 
     let floors = createFloors buildingSettings.Floor
     let elevators = createElevators buildingSettings.Elevator floors.Head
@@ -121,9 +115,6 @@ let init (settings: Settings) =
         Elevators = elevators
         Floors = floors
     }
-
-    document.onkeydown <- keydown
-    document.onkeyup <- keyup
 
     loop building context canvasSettings
 
