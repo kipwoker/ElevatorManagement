@@ -27,22 +27,31 @@ let events = {
     queue = []
 }
 
+let fromKeyCode keyCode =
+    match keyCode with
+    | 49 -> Digit 1 |> Some
+    | 50 -> Digit 2 |> Some
+    | 51 -> Digit 3 |> Some
+    | 52 -> Digit 4 |> Some
+    | 53 -> Digit 5 |> Some
+    | 54 -> Digit 6 |> Some
+    | 55 -> Digit 7 |> Some
+    | _ -> None
+
 let keydown (event : KeyboardEvent)  =
+    let key = int event.keyCode |> fromKeyCode
     let result = 
-        match int event.keyCode with
-        | 49 -> events.queue <- events.queue @ [Digit 1 |> KeyDown]
-        | 50 -> events.queue <- events.queue @ [Digit 2 |> KeyDown]
-        | 51 -> events.queue <- events.queue @ [Digit 3 |> KeyDown]
-        | _ -> ()
+        match key with
+        | Some key' -> events.queue <- events.queue @ [key' |> KeyDown]
+        | None -> ()
     result |> ignore
 
 let keyup (event : KeyboardEvent)  =
+    let key = int event.keyCode |> fromKeyCode
     let result = 
-        match int event.keyCode with
-        | 49 -> events.queue <- events.queue @ [Digit 1 |> KeyUp]
-        | 50 -> events.queue <- events.queue @ [Digit 2 |> KeyUp]
-        | 51 -> events.queue <- events.queue @ [Digit 3 |> KeyUp]
-        | _ -> ()
+        match key with
+        | Some key' -> events.queue <- events.queue @ [key' |> KeyUp]
+        | None -> ()
     result |> ignore
 
 let createFloors (floorSettings : FloorSettings) : Floor list =
