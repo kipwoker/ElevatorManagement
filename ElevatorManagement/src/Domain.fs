@@ -101,28 +101,36 @@ let applyDomainEvent (event: DomainEvent) (building: Building) =
         }
     | Fail _ -> building
 
+let private move speed quantCountPerMove height elevator direction (destination : Destination) =
+  let destinationHeight = (float (destination.Number - 1)) * height
+  let interval = speed * quantCountPerMove
+  let newVerticalPosition =
+    match direction with
+    | Up -> Math.min(destinationHeight, elevator.VerticalPosition + interval)
+    | Down -> Math.max(destinationHeight, elevator.VerticalPosition - interval)
+  let newState =
+    if destinationHeight = newVerticalPosition
+    then Idle destination
+    else elevator.State
+  {
+    Number = elevator.Number
+    State = newState
+    VerticalPosition = newVerticalPosition
+  }
+
 let lifecycle (building: Building) =
   let quantCountPerMove = building.Settings.QuantPerMove
   let elevatorSettings = building.Settings.Elevator
   let floorSettings = building.Settings.Floor
+  let height = floorSettings.Height
   let speed = elevatorSettings.Speed
+  let move' = move speed quantCountPerMove height
   let elevators = building.Elevators
                   |> List.map (
                         fun elevator -> 
                           match elevator.State with
                           | Idle _ -> elevator
-                          | Move (direction, destination) ->
-                            let destinationHeight = (float (destination.Number - 1)) * floorSettings.Height
-                            let interval = speed * quantCountPerMove
-                            let shift = match direction with
-                                        | Up -> interval
-                                        | Down -> -interval
-                            let newVerticalPosition = Math.min(destinationHeight, elevator.VerticalPosition + shift)
-                            {
-                              Number = elevator.Number
-                              State = if destinationHeight = newVerticalPosition then Idle destination else elevator.State
-                              VerticalPosition = newVerticalPosition
-                            }
+                          | Move (direction, destination) -> move' elevator direction destination
                      )
   {
     Settings = building.Settings
