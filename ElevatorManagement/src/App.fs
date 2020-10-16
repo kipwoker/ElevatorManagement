@@ -15,7 +15,7 @@ window.onload <- fun _ ->
                 X = 30.0
                 Y = 30.0
             }
-            QuantToRenderingTime = TimeSpan.FromSeconds(1.0)
+            QuantToRenderingTime = TimeSpan.FromMilliseconds(250.0)
         };
         BuildingSettings = {
             Floor = {
@@ -27,7 +27,7 @@ window.onload <- fun _ ->
                 Count = 3
                 Height = 70.0
                 Width = 40.0
-                Speed = 30.0
+                Speed = 50.0
                 Padding = 15.0
             }
             QuantPerMove = 1.0
